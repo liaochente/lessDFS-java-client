@@ -1,4 +1,4 @@
-package com.liaochente.lessdfs.protocol;
+package com.liaochente.lessdfs.protcotol;
 
 public enum LessMessageType {
     UPLOAD_FILE_IN("文件上传请求", 1),
