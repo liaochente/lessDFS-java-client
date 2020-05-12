@@ -37,7 +37,7 @@ public class LessMessageUtils {
         return byteBuf;
     }
 
-    public final static ByteBuf createUploadFileMessage(String fileName, String fileExt, String path) {
+    public final static ByteBuf createUploadFileMessage(String fileExt, String path) {
         byte type = (byte) LessMessageType.UPLOAD_FILE_IN.getType();
         byte priority = 0;
         try {
@@ -52,21 +52,41 @@ public class LessMessageUtils {
 
             byte[] data = byteBuffer.array();
 
-            ByteBuf byteBuf = Unpooled.buffer(20 + 4 + fileName.length() + 4 + fileExt.length() + 4 + data.length);
+            ByteBuf byteBuf = Unpooled.buffer(20 + 4 + fileExt.length() + 4 + data.length);
             byteBuf.writeInt(MAGIC_CODE);
             byteBuf.writeLong(SESSIONID);
             byteBuf.writeByte(type);
             byteBuf.writeByte(priority);
             byteBuf.writeBytes(new byte[1]);//status
             byteBuf.writeBytes(new byte[5]);
-            byteBuf.writeInt(fileName.length());
-            byteBuf.writeBytes(fileName.getBytes());
             byteBuf.writeInt(fileExt.length());
             byteBuf.writeBytes(fileExt.getBytes());
 
 
             byteBuf.writeInt(data.length);
             byteBuf.writeBytes(data);
+            return byteBuf;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    public final static ByteBuf createDownloadFileMessage(String path) {
+        byte type = (byte) LessMessageType.DOWNLOAD_FILE_IN.getType();
+        byte priority = 0;
+        try {
+
+            ByteBuf byteBuf = Unpooled.buffer(20 + 4 + path.length());
+            byteBuf.writeInt(MAGIC_CODE);
+            byteBuf.writeLong(SESSIONID);
+            byteBuf.writeByte(type);
+            byteBuf.writeByte(priority);
+            byteBuf.writeBytes(new byte[1]);//status
+            byteBuf.writeBytes(new byte[5]);
+            byteBuf.writeInt(path.length());
+            byteBuf.writeBytes(path.getBytes());
             return byteBuf;
         } catch (Exception e) {
             e.printStackTrace();
