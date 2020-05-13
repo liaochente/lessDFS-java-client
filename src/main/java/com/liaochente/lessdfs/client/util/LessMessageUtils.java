@@ -11,7 +11,7 @@ import java.nio.channels.FileChannel;
 
 public class LessMessageUtils {
 
-    private final static Integer MAGIC_CODE = 0x76;
+    private final static Integer MAGIC_CODE = 0x294;
 
     public static Long SESSIONID = null;
 
@@ -94,4 +94,24 @@ public class LessMessageUtils {
         return null;
     }
 
+    public final static ByteBuf createDeleteFileMessage(String path) {
+        byte type = (byte) LessMessageType.DELETE_FILE_IN.getType();
+        byte priority = 0;
+        try {
+
+            ByteBuf byteBuf = Unpooled.buffer(20 + 4 + path.length());
+            byteBuf.writeInt(MAGIC_CODE);
+            byteBuf.writeLong(SESSIONID);
+            byteBuf.writeByte(type);
+            byteBuf.writeByte(priority);
+            byteBuf.writeBytes(new byte[1]);//status
+            byteBuf.writeBytes(new byte[5]);
+            byteBuf.writeInt(path.length());
+            byteBuf.writeBytes(path.getBytes());
+            return byteBuf;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }

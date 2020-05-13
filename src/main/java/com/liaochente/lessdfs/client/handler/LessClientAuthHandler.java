@@ -103,6 +103,14 @@ public class LessClientAuthHandler extends ChannelInboundHandlerAdapter {
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
+
+            //下载文件后删除该文件
+            LOG.debug("发起请求删除文件 >>> {}", fileName);
+            ctx.writeAndFlush(LessMessageUtils.createDeleteFileMessage(fileName));
+        }
+
+        if (LessMessageType.DELETE_FILE_OUT == LessMessageType.convert(type)) {
+            LOG.debug("删除文件成功 >>>> finished");
         }
     }
 
