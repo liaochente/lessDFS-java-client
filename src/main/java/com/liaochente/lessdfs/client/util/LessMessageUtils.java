@@ -11,7 +11,7 @@ import java.nio.channels.FileChannel;
 
 public class LessMessageUtils {
 
-    private final static Integer MAGIC_CODE = 0x294;
+    public final static int MAGIC_CODE = 0x294;
 
     public static Long SESSIONID = null;
 

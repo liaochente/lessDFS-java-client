@@ -30,7 +30,8 @@ public class LessClientAuthHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
         Integer magicCode = buf.readInt();
-        if (magicCode != 0x76) {
+        LOG.debug("magicCode={}", magicCode);
+        if (magicCode != LessMessageUtils.MAGIC_CODE) {
             LOG.debug("error|文件头不正确");
             throw new RuntimeException("error: 文件头不正确");
         }
@@ -83,10 +84,10 @@ public class LessClientAuthHandler extends ChannelInboundHandlerAdapter {
             buf.readBytes(buffers);
             String fileName = new String(buffers);
 
-            int fileExtLength = buf.readInt();
-            buffers = new byte[fileExtLength];
-            buf.readBytes(buffers);
-            String fileExt = new String(buffers);
+//            int fileExtLength = buf.readInt();
+//            buffers = new byte[fileExtLength];
+//            buf.readBytes(buffers);
+//            String fileExt = new String(buffers);
 
             int dataLength = buf.readInt();
             buffers = new byte[dataLength];
@@ -96,7 +97,7 @@ public class LessClientAuthHandler extends ChannelInboundHandlerAdapter {
                 ByteBuffer byteBuffer = ByteBuffer.allocate(buffers.length);
                 byteBuffer.put(buffers);
                 byteBuffer.flip();
-                FileChannel fileChannel = new FileOutputStream(new File("/Users/liaochente/less_down/down." + fileExt), false).getChannel();
+                FileChannel fileChannel = new FileOutputStream(new File("/Users/liaochente/less_down/down.sh"), false).getChannel();
                 fileChannel.write(byteBuffer);
                 byteBuffer.clear();
                 fileChannel.close();
@@ -105,8 +106,8 @@ public class LessClientAuthHandler extends ChannelInboundHandlerAdapter {
             }
 
             //下载文件后删除该文件
-            LOG.debug("发起请求删除文件 >>> {}", fileName);
-            ctx.writeAndFlush(LessMessageUtils.createDeleteFileMessage(fileName));
+//            LOG.debug("发起请求删除文件 >>> {}", fileName);
+//            ctx.writeAndFlush(LessMessageUtils.createDeleteFileMessage(fileName));
         }
 
         if (LessMessageType.DELETE_FILE_OUT == LessMessageType.convert(type)) {
