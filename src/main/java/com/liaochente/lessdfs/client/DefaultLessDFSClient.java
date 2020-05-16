@@ -2,6 +2,7 @@ package com.liaochente.lessdfs.client;
 
 import com.liaochente.lessdfs.DownloadCallback;
 import com.liaochente.lessdfs.client.constant.LessClientConfig;
+import com.liaochente.lessdfs.client.constant.LessStatus;
 import com.liaochente.lessdfs.protcotol.LessMessageType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -64,6 +65,10 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
         private CountDownLatch countDownLatch = new CountDownLatch(1);
 
+        private boolean success;
+
+        private byte status;
+
         private T result;
 
         public ClientWriteFuture(long sessionId) {
@@ -73,23 +78,40 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
         public T get() {
             try {
-                LOG.debug("等待请求结果返回 sessionId={}", this.sessionId);
+                LOG.debug("等待请求结果返回 [SESSIONID={}]", this.sessionId);
                 this.countDownLatch.await();
-                LOG.debug("结果已返回 result={}", this.result);
+                LOG.debug("结果已返回 [SESSIONID={}, success={}, status={}, result={}]", this.sessionId, this.success, this.status, this.result);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } finally {
-                LOG.debug("释放ClientWriteFuture.sessionId={}", this.sessionId);
+                LOG.debug("dispose clientWriteFuture object [SESSIONID={}]", this.sessionId);
                 ClientWriteFuturePool.remove(this.sessionId);
             }
-            LOG.debug("返回数据");
             return result;
         }
 
+        public void set(byte status) {
+            set(status, null);
+        }
+
         public void set(T result) {
+            set((byte) LessStatus.OK.getStatus(), result);
+        }
+
+        public void set(byte status, T result) {
             this.result = result;
+            this.status = status;
+            this.success = LessStatus.convert(status) == LessStatus.OK;
             this.countDownLatch.countDown();
             LOG.debug("请求结果已返回 token={}", this.sessionId);
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public byte getStatus() {
+            return status;
         }
     }
 
@@ -102,7 +124,6 @@ public class DefaultLessDFSClient implements ILessDFSClient {
      * 处理服务器响应报文
      */
     private class ClientInHandler extends ChannelInboundHandlerAdapter {
-
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             HANDLER_LOG.debug("收到响应报文");
@@ -113,21 +134,45 @@ public class DefaultLessDFSClient implements ILessDFSClient {
             byte type = buf.readByte();
             byte priority = buf.readByte();
             byte status = buf.readByte();
-            HANDLER_LOG.debug("sessionId = {}, type = {}", sessionId, LessMessageType.convert(type));
-            if (LessMessageType.UPLOAD_FILE_OUT == LessMessageType.convert(type)) {
-                int fileNameLength = buf.readInt();
-                byte[] temps = new byte[fileNameLength];
-                buf.readBytes(temps);
-                String fileName = new String(temps);
 
-                int fileExtLength = buf.readInt();
-                temps = new byte[fileExtLength];
-                buf.readBytes(temps);
-                String fileExt = new String(temps);
+            if (LessStatus.convert(status) == LessStatus.OK) {
+                //处理上传响应
+                if (LessMessageType.UPLOAD_FILE_OUT == LessMessageType.convert(type)) {
+                    int fileNameLength = buf.readInt();
+                    byte[] temps = new byte[fileNameLength];
+                    buf.readBytes(temps);
+                    String fileName = new String(temps);
 
-                HANDLER_LOG.debug("解析到已上传成功的文件名  >>> {}, 文件扩展名 >>> {}, status >>> {}", fileName, fileExt, status);
-                ClientWriteFuturePool.get(sessionId).set(fileName);
+                    int fileExtLength = buf.readInt();
+                    temps = new byte[fileExtLength];
+                    buf.readBytes(temps);
+                    String fileExt = new String(temps);
+                    ClientWriteFuturePool.get(sessionId).set(fileName);
+                }
+
+                //处理下载响应
+                if (LessMessageType.DOWNLOAD_FILE_OUT == LessMessageType.convert(type)) {
+                    int fileNameLength = buf.readInt();
+                    byte[] buffers = new byte[fileNameLength];
+                    buf.readBytes(buffers);
+                    String fileName = new String(buffers);
+
+                    int fileLength = buf.readInt();
+                    byte[] fileBytes = new byte[fileLength];
+                    buf.readBytes(fileBytes);
+                    ClientWriteFuturePool.get(sessionId).set(new ByteArrayInputStream(fileBytes));
+                }
+
+                //处理删除响应
+                if (LessMessageType.DELETE_FILE_OUT == LessMessageType.convert(type)) {
+                    ClientWriteFuturePool.get(sessionId).set(true);
+                }
+            } else {
+                ClientWriteFuturePool.get(sessionId).set(status);
             }
+
+//            HANDLER_LOG.debug("sessionId = {}, type = {}", sessionId, LessMessageType.convert(type));
+
             ctx.fireChannelRead(msg);
         }
 
@@ -211,16 +256,71 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
     @Override
     public InputStream download(String fileName) {
+        byte type = (byte) LessMessageType.DOWNLOAD_FILE_IN.getType();
+        byte priority = 0;
+        byte[] passwords = LessClientConfig.PASSWORD.getBytes();
+        Long token = null;
+        try {
+            token = TokenFactory.getToken();
+            ByteBuf byteBuf = Unpooled.buffer(15 + 4 + passwords.length + 4 + fileName.length());
+            byteBuf.writeInt(LessClientConfig.MAGIC_CODE);
+            byteBuf.writeLong(token);
+            byteBuf.writeByte(type);
+            byteBuf.writeByte(priority);
+            byteBuf.writeByte(0);//status
+            byteBuf.writeInt(passwords.length);
+            byteBuf.writeBytes(passwords);
+            byteBuf.writeInt(fileName.length());
+            byteBuf.writeBytes(fileName.getBytes());
+
+            clientBootstrap.getChannel().writeAndFlush(byteBuf).sync();
+            ClientWriteFuture<InputStream> writeFuture = new ClientWriteFuture<>(token);
+            return writeFuture.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (token != null) {
+                TokenFactory.releaseToken(token);
+            }
+        }
         return null;
     }
 
     @Override
     public <T> T download(String fileName, DownloadCallback<T> callback) {
-        return null;
+        InputStream inputStream = this.download(fileName);
+        return callback.receive(inputStream);
     }
 
     @Override
-    public void delete(String fileName) {
+    public Boolean delete(String fileName) {
+        byte type = (byte) LessMessageType.DELETE_FILE_IN.getType();
+        byte priority = 0;
+        byte[] passwords = LessClientConfig.PASSWORD.getBytes();
+        Long token = null;
+        try {
+            token = TokenFactory.getToken();
+            ByteBuf byteBuf = Unpooled.buffer(15 + 4 + passwords.length + 4 + fileName.length());
+            byteBuf.writeInt(LessClientConfig.MAGIC_CODE);
+            byteBuf.writeLong(token);
+            byteBuf.writeByte(type);
+            byteBuf.writeByte(priority);
+            byteBuf.writeByte(0);//status
+            byteBuf.writeInt(passwords.length);
+            byteBuf.writeBytes(passwords);
+            byteBuf.writeInt(fileName.length());
+            byteBuf.writeBytes(fileName.getBytes());
 
+            clientBootstrap.getChannel().writeAndFlush(byteBuf).sync();
+            ClientWriteFuture<Boolean> writeFuture = new ClientWriteFuture<>(token);
+            return writeFuture.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (token != null) {
+                TokenFactory.releaseToken(token);
+            }
+        }
+        return false;
     }
 }

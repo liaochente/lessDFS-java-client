@@ -23,5 +23,5 @@ public interface ILessDFSClient {
 
     <T> T download(String fileName, DownloadCallback<T> callback);
 
-    void delete(String fileName);
+    Boolean delete(String fileName);
 }
