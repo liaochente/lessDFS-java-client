@@ -43,7 +43,11 @@ public class TokenFactory {
      */
     private static ScheduledFuture future;
 
-    static {
+    private TokenFactory() {
+        //emtpy
+    }
+
+    public final static void startTokenTask() {
         //创建扩容周期任务
         future = LessClientConfig.GLOBAL_SCHEDULED_THREAD_POOL.scheduleAtFixedRate(() -> {
             try {
@@ -55,10 +59,6 @@ public class TokenFactory {
                 future.cancel(true);
             }
         }, 1, 60, TimeUnit.SECONDS);
-    }
-
-    private TokenFactory() {
-        //emtpy
     }
 
     /**

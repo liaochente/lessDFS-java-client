@@ -187,6 +187,8 @@ public class DefaultLessDFSClient implements ILessDFSClient {
      * 构造方法
      */
     public DefaultLessDFSClient() {
+        LOG.debug("start the task in the token factory.");
+        TokenFactory.startTokenTask();
         LOG.debug("init clientBootstrap start");
         this.clientBootstrap = new ClientBootstrap(new ClientInHandler());
         LOG.debug("init clientBootstrap finished");
