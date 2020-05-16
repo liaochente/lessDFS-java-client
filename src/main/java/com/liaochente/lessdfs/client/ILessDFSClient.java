@@ -19,6 +19,8 @@ public interface ILessDFSClient {
 
     String upload(InputStream inputStream, String fileExt);
 
+    InputStream download(String fileName);
+
     <T> T download(String fileName, DownloadCallback<T> callback);
 
     void delete(String fileName);

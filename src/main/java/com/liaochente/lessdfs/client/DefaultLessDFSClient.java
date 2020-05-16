@@ -186,6 +186,11 @@ public class DefaultLessDFSClient implements ILessDFSClient {
     }
 
     @Override
+    public InputStream download(String fileName) {
+        return null;
+    }
+
+    @Override
     public <T> T download(String fileName, DownloadCallback<T> callback) {
         return null;
     }
