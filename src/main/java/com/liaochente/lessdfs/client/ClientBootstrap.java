@@ -11,6 +11,9 @@ import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Netty 启动引导类
+ */
 public class ClientBootstrap {
 
     private final static Logger LOG = LoggerFactory.getLogger(ClientBootstrap.class);
@@ -37,11 +40,6 @@ public class ClientBootstrap {
             }
             throw new RuntimeException(e);
         }
-    }
-
-    public void shutdown() throws InterruptedException {
-        channelFuture.channel().closeFuture().sync();
-        worker.shutdownGracefully();
     }
 
     public Channel getChannel() {
@@ -76,4 +74,13 @@ public class ClientBootstrap {
         return channelFuture;
     }
 
+    /**
+     * 释放资源
+     *
+     * @throws InterruptedException
+     */
+    private void shutdown() throws InterruptedException {
+        channelFuture.channel().closeFuture().sync();
+        worker.shutdownGracefully();
+    }
 }

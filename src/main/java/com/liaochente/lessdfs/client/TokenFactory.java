@@ -9,21 +9,42 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * 令牌生产工厂
+ * 生产64位长度的唯一令牌
+ */
 public class TokenFactory {
     private final static Logger LOG = LoggerFactory.getLogger(TokenFactory.class);
 
+    /**
+     * 令牌存放桶
+     */
     private final static BlockingDeque<Long> TOKEN_QUEUE = new LinkedBlockingDeque<>();
 
+    /**
+     * 当前已产生令牌数量
+     */
     private final static AtomicLong CURRENT_TOKEN_COUNT = new AtomicLong(Long.MIN_VALUE);
 
+    /**
+     * 令牌桶扩容步长
+     */
     private final static int STEP = 1024;
 
+    /**
+     * 令牌桶可存放最大令牌数
+     */
     private final static Long MAX_TOKEN_COUNT = Long.MAX_VALUE;
 
+    /**
+     * 令牌桶扩容周期任务
+     */
     private static ScheduledFuture future;
 
     static {
+        //创建扩容周期任务
         future = LessClientConfig.GLOBAL_SCHEDULED_THREAD_POOL.scheduleAtFixedRate(() -> {
             try {
                 if (isAugment()) {
@@ -40,29 +61,53 @@ public class TokenFactory {
         //emtpy
     }
 
+    /**
+     * 获取令牌
+     *
+     * @return
+     * @throws InterruptedException
+     */
     public final static long getToken() throws InterruptedException {
-        return TOKEN_QUEUE.take();
+        LOG.debug("take token start.");
+        long token = TOKEN_QUEUE.take();
+        LOG.debug("take token end. token={}", token);
+        return token;
     }
 
+    /**
+     * 释放令牌
+     *
+     * @param token
+     */
     public final static void releaseToken(long token) {
         try {
-            LOG.debug("释放token start");
+            LOG.debug("release token start. token={}", token);
             TOKEN_QUEUE.put(token);
-            LOG.debug("释放token end");
+            LOG.debug("release token end.");
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            LOG.error("release token error", e);
         }
     }
 
+    /**
+     * 判断是否需要扩容
+     * 默认令牌桶中令牌数量少于10就开始扩容
+     *
+     * @return
+     */
     private static boolean isAugment() {
         return TOKEN_QUEUE.size() < 10;
     }
 
+    /**
+     * 扩容方法
+     *
+     * @throws InterruptedException
+     */
     private static void augment() throws InterruptedException {
-        LOG.debug("CURRENT_TOKEN_COUNT={}, MAX_TOKEN_COUNT={}", CURRENT_TOKEN_COUNT.get(), MAX_TOKEN_COUNT);
+        LOG.debug("token queue has {} tokens.", CURRENT_TOKEN_COUNT.get());
         if (CURRENT_TOKEN_COUNT.get() == MAX_TOKEN_COUNT) {
-            //可用令牌已经全部扩充耗尽
-            LOG.debug("可用令牌已经全部扩充耗尽");
+            LOG.debug("The maximum number of tokens has been reached.");
             throw new InterruptedException();
         }
 
@@ -77,7 +122,7 @@ public class TokenFactory {
             long token = CURRENT_TOKEN_COUNT.incrementAndGet();
             TOKEN_QUEUE.put(token);
         }
-        LOG.debug("令牌桶扩充完毕: addTokenNum={}, minToken={}, maxToken={}, currentQueueSize={}", length, currentTokenCount + 1, CURRENT_TOKEN_COUNT.get(), TOKEN_QUEUE.size());
+        LOG.debug("add {} tokens to the token bucket, token queue has {} tokens.", length, currentTokenCount + 1, CURRENT_TOKEN_COUNT.get(), TOKEN_QUEUE.size());
     }
 
 }

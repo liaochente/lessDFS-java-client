@@ -2,13 +2,11 @@ package com.liaochente.lessdfs.client;
 
 import com.liaochente.lessdfs.DownloadCallback;
 import com.liaochente.lessdfs.client.constant.LessClientConfig;
-import com.liaochente.lessdfs.client.util.LessMessageUtils;
 import com.liaochente.lessdfs.protcotol.LessMessageType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,11 +17,23 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+/**
+ * 默认客户端实现
+ * 提供文件上传、下载、删除功能
+ */
 public class DefaultLessDFSClient implements ILessDFSClient {
 
     private final static Logger LOG = LoggerFactory.getLogger(DefaultLessDFSClient.class);
+
+    /**
+     * ChannelHandler日志对象
+     */
     private final static Logger HANDLER_LOG = LoggerFactory.getLogger(ClientInHandler.class);
 
+    /**
+     * 客户端异步请求结果池
+     * 功能：存放所有异步请求结果
+     */
     private static class ClientWriteFuturePool {
         private final static Map<String, ClientWriteFuture> FUTURE_POOL = new ConcurrentHashMap<>();
 
@@ -42,6 +52,12 @@ public class DefaultLessDFSClient implements ILessDFSClient {
         }
     }
 
+    /**
+     * 客户端异步请求结果类
+     * 功能：用于获取客户端的异步请求结果
+     *
+     * @param <T>
+     */
     private class ClientWriteFuture<T> {
 
         private long sessionId;
@@ -52,7 +68,6 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
         public ClientWriteFuture(long sessionId) {
             this.sessionId = sessionId;
-
             ClientWriteFuturePool.put(this.sessionId, this);
         }
 
@@ -78,8 +93,14 @@ public class DefaultLessDFSClient implements ILessDFSClient {
         }
     }
 
+    /**
+     * Netty Client
+     */
     private ClientBootstrap clientBootstrap;
 
+    /**
+     * 处理服务器响应报文
+     */
     private class ClientInHandler extends ChannelInboundHandlerAdapter {
 
         @Override
@@ -117,6 +138,9 @@ public class DefaultLessDFSClient implements ILessDFSClient {
         }
     }
 
+    /**
+     * 构造方法
+     */
     public DefaultLessDFSClient() {
         LOG.debug("init clientBootstrap start");
         this.clientBootstrap = new ClientBootstrap(new ClientInHandler());
