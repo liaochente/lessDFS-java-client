@@ -16,39 +16,43 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ClientTest {
 
     private final static Logger LOG = LoggerFactory.getLogger(ClientTest.class);
-
+    private final static int REQUEST_NUMBER = 1;
     private static AtomicLong total = new AtomicLong(0);
     private static AtomicLong successRequest = new AtomicLong(0);
     private static AtomicLong failRequest = new AtomicLong(0);
 
     private final static void printStopWatchs() {
-        List<StopWatch> stopWatches = StopWatch.STOP_WATCHES;
-        LOG.debug("*************** 执行时间统计数据 ***************");
-        Set<String> set = new HashSet<>();
-        stopWatches.forEach(e -> set.add(e.getThreadName()));
+        if (StopWatch.OPEN) {
+            List<StopWatch> stopWatches = StopWatch.STOP_WATCHES;
+            LOG.debug("*************** 执行时间统计数据 ***************");
+            Set<String> set = new HashSet<>();
+            stopWatches.forEach(e -> set.add(e.getThreadName()));
 
-        set.forEach(e -> {
-            stopWatches.forEach(sw -> {
-                if (sw.getThreadName().equals(e)) {
-                    List<Map<String, Object>> tasks = sw.getTasks();
-                    tasks.forEach(task -> {
-                        //计算时间差
-                        String taskName = (String) task.get("taskName");
-                        Instant start = (Instant) task.get("start");
-                        Instant end = (Instant) task.get("end");
-                        long millis = Duration.between(start, end).toMillis();
-                        LOG.debug(" Thread-[{}] TaskName-[{}] millis-[{}] ms ", sw.getThreadName(), taskName, millis);
-                    });
-                }
+            set.forEach(e -> {
+                stopWatches.forEach(sw -> {
+                    if (sw.getThreadName().equals(e)) {
+                        List<Map<String, Object>> tasks = sw.getTasks();
+                        tasks.forEach(task -> {
+                            //计算时间差
+                            String taskName = (String) task.get("taskName");
+                            Instant start = (Instant) task.get("start");
+                            Instant end = (Instant) task.get("end");
+                            long millis = Duration.between(start, end).toMillis();
+                            LOG.debug(" Thread-[{}] TaskName-[{}] millis-[{}] ms ", sw.getThreadName(), taskName, millis);
+                        });
+                    }
+                });
             });
-        });
+        }
+        LOG.debug("*************** 外部调用统计 ***************");
+        LOG.debug("总耗时: {}ms, 平均耗时: {}ms", total.get(), total.get() / (successRequest.get() - failRequest.get()));
+        LOG.debug("***************            ***************");
     }
 
     public static void main(String[] args) {
-        int requestNum = 50;
-        CountDownLatch countDownLatch = new CountDownLatch(requestNum);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(requestNum, 500, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100));
-        DefaultLessDFSClient client = new DefaultLessDFSClient();
+        CountDownLatch countDownLatch = new CountDownLatch(REQUEST_NUMBER);
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(REQUEST_NUMBER, 500, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100));
+        DefaultLessDFSClient client = DefaultLessDFSClient.newInstance();
 
         try {
             Thread.sleep(5 * 1000);
@@ -56,7 +60,7 @@ public class ClientTest {
             e.printStackTrace();
         }
         List<Future> futures = new ArrayList<>();
-        for (int i = 0; i < requestNum; i++) {
+        for (int i = 0; i < REQUEST_NUMBER; i++) {
             Future future = poolExecutor.submit(() -> {
                 try {
                     countDownLatch.await();

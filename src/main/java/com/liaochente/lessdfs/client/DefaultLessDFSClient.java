@@ -26,17 +26,17 @@ import java.util.concurrent.TimeUnit;
  */
 public class DefaultLessDFSClient implements ILessDFSClient {
 
-    /**
-     * 客户端实例
-     */
-    private final static DefaultLessDFSClient DEFAULT_LESS_DFS_CLIENT = new DefaultLessDFSClient();
-
     private final static Logger LOG = LoggerFactory.getLogger(DefaultLessDFSClient.class);
 
     /**
      * ChannelHandler日志对象
      */
     private final static Logger HANDLER_LOG = LoggerFactory.getLogger(ClientInHandler.class);
+
+    /**
+     * 客户端实例
+     */
+    private final static DefaultLessDFSClient DEFAULT_LESS_DFS_CLIENT = new DefaultLessDFSClient();
 
     /**
      * 客户端异步请求结果池

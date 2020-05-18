@@ -5,6 +5,8 @@ import java.util.*;
 
 public class StopWatch {
 
+    public final static boolean OPEN = false;
+
     public final static List<StopWatch> STOP_WATCHES = Collections.synchronizedList(new ArrayList<>());
 
     String threadName;
@@ -14,19 +16,25 @@ public class StopWatch {
     Map<String, Object> taskMap;
 
     public StopWatch() {
-        this.threadName = Thread.currentThread().getName();
-        STOP_WATCHES.add(this);
+        if (OPEN) {
+            this.threadName = Thread.currentThread().getName();
+            STOP_WATCHES.add(this);
+        }
     }
 
     public void start(String taskName) {
-        taskMap = new HashMap<>();
-        taskMap.put("taskName", taskName);
-        taskMap.put("start", Instant.now());
+        if (OPEN) {
+            taskMap = new HashMap<>();
+            taskMap.put("taskName", taskName);
+            taskMap.put("start", Instant.now());
+        }
     }
 
     public void stop() {
-        taskMap.put("end", Instant.now());
-        tasks.add(taskMap);
+        if (OPEN) {
+            taskMap.put("end", Instant.now());
+            tasks.add(taskMap);
+        }
     }
 
     public List<Map<String, Object>> getTasks() {
