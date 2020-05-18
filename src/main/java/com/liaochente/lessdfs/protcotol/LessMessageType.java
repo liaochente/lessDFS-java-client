@@ -1,8 +1,9 @@
 package com.liaochente.lessdfs.protcotol;
 
 public enum LessMessageType {
-    LOGIN_IN("登录认证请求", 98),
-    LOGIN_OUT("登录认证应答", 99),
+    //    LOGIN_IN("登录认证请求", 98),
+//    LOGIN_OUT("登录认证应答", 99),
+    INTERNAL_ERROR_OUT("服务器发生内部异常应答", 254),
     UPLOAD_FILE_IN("文件上传请求", 1),
     UPLOAD_FILE_OUT("文件上传应答", 2),
     DOWNLOAD_FILE_IN("文件下载请求", 3),
@@ -15,7 +16,7 @@ public enum LessMessageType {
     public final static LessMessageType convert(int type) {
         LessMessageType[] lessMessageTypes = LessMessageType.values();
         for (LessMessageType lessMessageType : lessMessageTypes) {
-            if(lessMessageType.type == type) {
+            if (lessMessageType.type == type) {
                 return lessMessageType;
             }
         }

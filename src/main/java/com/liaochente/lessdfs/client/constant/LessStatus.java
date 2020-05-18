@@ -2,6 +2,7 @@ package com.liaochente.lessdfs.client.constant;
 
 public enum LessStatus {
 
+    INTERNAL_ERROR(205, "服务器内部错误"),
     NOT_FOUND(204, "文件不存在"),
     EMPTY_PROTOCOL(201, "报文为空"),
     FAIL(200, "请求失败"),

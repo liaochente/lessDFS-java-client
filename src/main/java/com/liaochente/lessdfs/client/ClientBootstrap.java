@@ -18,7 +18,7 @@ public class ClientBootstrap {
 
     private final static Logger LOG = LoggerFactory.getLogger(ClientBootstrap.class);
 
-    private Bootstrap clientBootstap = new Bootstrap();
+    private Bootstrap bootstrap = new Bootstrap();
 
     private EventLoopGroup worker = new NioEventLoopGroup();
 
@@ -52,11 +52,11 @@ public class ClientBootstrap {
      * @return
      * @throws InterruptedException
      */
-    private ChannelFuture connect() throws InterruptedException {
-        clientBootstap.group(worker);
-        clientBootstap.option(ChannelOption.TCP_NODELAY, true);
-        clientBootstap.channel(NioSocketChannel.class);
-        clientBootstap.handler(new ChannelInitializer<Channel>() {
+    public ChannelFuture connect() throws InterruptedException {
+        bootstrap.group(worker);
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.channel(NioSocketChannel.class);
+        bootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel channel) throws Exception {
                 ChannelPipeline pipeline = channel.pipeline();
@@ -68,8 +68,8 @@ public class ClientBootstrap {
             }
         });
 
-        channelFuture = clientBootstap.connect("127.0.0.1", 8888).sync();
-        LOG.debug("clientBootstap.connect finished");
+        channelFuture = bootstrap.connect("127.0.0.1", 8888).sync();
+        LOG.debug("bootstrap.connect finished");
         channel = channelFuture.channel();
         return channelFuture;
     }
@@ -79,8 +79,7 @@ public class ClientBootstrap {
      *
      * @throws InterruptedException
      */
-    private void shutdown() throws InterruptedException {
-        channelFuture.channel().closeFuture().sync();
+    public void shutdown() throws InterruptedException {
         worker.shutdownGracefully();
     }
 }

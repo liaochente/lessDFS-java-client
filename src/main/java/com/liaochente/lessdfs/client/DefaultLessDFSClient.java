@@ -26,6 +26,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class DefaultLessDFSClient implements ILessDFSClient {
 
+    /**
+     * 客户端实例
+     */
+    private final static DefaultLessDFSClient DEFAULT_LESS_DFS_CLIENT = new DefaultLessDFSClient();
+
     private final static Logger LOG = LoggerFactory.getLogger(DefaultLessDFSClient.class);
 
     /**
@@ -221,12 +226,21 @@ public class DefaultLessDFSClient implements ILessDFSClient {
     /**
      * 构造方法
      */
-    public DefaultLessDFSClient() {
+    private DefaultLessDFSClient() {
         LOG.debug("start the task in the token factory.");
         TokenFactory.startTokenTask();
         LOG.debug("init clientBootstrap start");
         this.clientBootstrap = new ClientBootstrap(new ClientInHandler());
         LOG.debug("init clientBootstrap finished");
+    }
+
+    /**
+     * 获取客户端实例
+     *
+     * @return
+     */
+    public final static DefaultLessDFSClient newInstance() {
+        return DEFAULT_LESS_DFS_CLIENT;
     }
 
     @Override
