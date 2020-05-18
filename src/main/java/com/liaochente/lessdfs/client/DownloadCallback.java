@@ -1,4 +1,4 @@
-package com.liaochente.lessdfs;
+package com.liaochente.lessdfs.client;
 
 import java.io.InputStream;
 

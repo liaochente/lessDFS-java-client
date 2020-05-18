@@ -1,7 +1,5 @@
 package com.liaochente.lessdfs.client;
 
-import com.liaochente.lessdfs.DownloadCallback;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;

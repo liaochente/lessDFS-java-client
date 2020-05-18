@@ -1,6 +1,5 @@
 package com.liaochente.lessdfs.client;
 
-import com.liaochente.lessdfs.DownloadCallback;
 import com.liaochente.lessdfs.client.constant.LessClientConfig;
 import com.liaochente.lessdfs.client.constant.LessStatus;
 import com.liaochente.lessdfs.client.util.StopWatch;
