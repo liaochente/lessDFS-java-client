@@ -3,6 +3,7 @@ package com.liaochente.lessdfs.client;
 import com.liaochente.lessdfs.DownloadCallback;
 import com.liaochente.lessdfs.client.constant.LessClientConfig;
 import com.liaochente.lessdfs.client.constant.LessStatus;
+import com.liaochente.lessdfs.client.util.StopWatch;
 import com.liaochente.lessdfs.protcotol.LessMessageType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -17,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 默认客户端实现
@@ -59,16 +61,28 @@ public class DefaultLessDFSClient implements ILessDFSClient {
      *
      * @param <T>
      */
-    private class ClientWriteFuture<T> {
+    private class ClientWriteFuture<T> implements AutoCloseable {
 
+        /**
+         * 请求标识
+         */
         private long sessionId;
 
         private CountDownLatch countDownLatch = new CountDownLatch(1);
 
+        /**
+         * 请求是否成功标识
+         */
         private boolean success;
 
+        /**
+         * 请求结果状态
+         */
         private byte status;
 
+        /**
+         * 请求结果数据
+         */
         private T result;
 
         public ClientWriteFuture(long sessionId) {
@@ -76,28 +90,43 @@ public class DefaultLessDFSClient implements ILessDFSClient {
             ClientWriteFuturePool.put(this.sessionId, this);
         }
 
-        public T get() {
-            try {
-                LOG.debug("等待请求结果返回 [SESSIONID={}]", this.sessionId);
-                this.countDownLatch.await();
-                LOG.debug("结果已返回 [SESSIONID={}, success={}, status={}, result={}]", this.sessionId, this.success, this.status, this.result);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } finally {
-                LOG.debug("dispose clientWriteFuture object [SESSIONID={}]", this.sessionId);
-                ClientWriteFuturePool.remove(this.sessionId);
-            }
+        /**
+         * 获得请求结果，在结果返回之前阻塞当前线程
+         *
+         * @return
+         * @throws InterruptedException
+         */
+        public T get() throws InterruptedException {
+            LOG.debug("等待请求结果返回 [SESSIONID={}]", this.sessionId);
+            this.countDownLatch.await(60, TimeUnit.SECONDS);
+            LOG.debug("结果已返回 [SESSIONID={}, success={}, status={}, result={}]", this.sessionId, this.success, this.status, this.result);
             return result;
         }
 
+        /**
+         * 设置请求结果
+         *
+         * @param status
+         */
         public void set(byte status) {
             set(status, null);
         }
 
+        /**
+         * 设置请求结果
+         *
+         * @param result
+         */
         public void set(T result) {
             set((byte) LessStatus.OK.getStatus(), result);
         }
 
+        /**
+         * 设置请求结果
+         *
+         * @param status
+         * @param result
+         */
         public void set(byte status, T result) {
             this.result = result;
             this.status = status;
@@ -112,6 +141,12 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
         public byte getStatus() {
             return status;
+        }
+
+        @Override
+        public void close() throws Exception {
+            LOG.debug("dispose clientWriteFuture object [SESSIONID={}]", this.sessionId);
+            ClientWriteFuturePool.remove(this.sessionId);
         }
     }
 
@@ -196,15 +231,21 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
     @Override
     public String upload(byte[] fileBytes, String fileExt) {
+        StopWatch stopWatch = new StopWatch();
+
         byte type = (byte) LessMessageType.UPLOAD_FILE_IN.getType();
         byte priority = 0;
         byte[] passwords = LessClientConfig.PASSWORD.getBytes();
-        Long token = null;
-        try {
-            token = TokenFactory.getToken();
+        stopWatch.start("获得token");
+        try (
+                TokenFactory.Token token = TokenFactory.getToken();
+                ClientWriteFuture<String> writeFuture = new ClientWriteFuture<>(token.longValue())
+        ) {
+            stopWatch.stop();
+
             ByteBuf byteBuf = Unpooled.buffer(15 + 4 + passwords.length + 4 + fileExt.length() + 4 + fileBytes.length);
             byteBuf.writeInt(LessClientConfig.MAGIC_CODE);
-            byteBuf.writeLong(token);
+            byteBuf.writeLong(token.longValue());
             byteBuf.writeByte(type);
             byteBuf.writeByte(priority);
             byteBuf.writeByte(0);//status
@@ -215,16 +256,12 @@ public class DefaultLessDFSClient implements ILessDFSClient {
             byteBuf.writeInt(fileBytes.length);
             byteBuf.writeBytes(fileBytes);
 
+            stopWatch.start("发送文件");
             clientBootstrap.getChannel().writeAndFlush(byteBuf).sync();
-            ClientWriteFuture<String> writeFuture = new ClientWriteFuture<>(token);
+            stopWatch.stop();
             return writeFuture.get();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (token != null) {
-                TokenFactory.releaseToken(token);
-            }
-
+            LOG.error("upload exception", e);
         }
         return null;
     }
@@ -247,11 +284,17 @@ public class DefaultLessDFSClient implements ILessDFSClient {
     @Override
     public String upload(InputStream inputStream, String fileExt) {
         try {
+            StopWatch stopWatch = new StopWatch();
+            stopWatch.start("read file");
+
             byte[] fileBytes = new byte[inputStream.available()];
             inputStream.read(fileBytes);
+
+            stopWatch.stop();
+
             return this.upload(fileBytes, fileExt);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error("upload exception", e);
         }
         return null;
     }
@@ -261,12 +304,13 @@ public class DefaultLessDFSClient implements ILessDFSClient {
         byte type = (byte) LessMessageType.DOWNLOAD_FILE_IN.getType();
         byte priority = 0;
         byte[] passwords = LessClientConfig.PASSWORD.getBytes();
-        Long token = null;
-        try {
-            token = TokenFactory.getToken();
+        try (
+                TokenFactory.Token token = TokenFactory.getToken();
+                ClientWriteFuture<InputStream> writeFuture = new ClientWriteFuture<>(token.longValue())
+        ) {
             ByteBuf byteBuf = Unpooled.buffer(15 + 4 + passwords.length + 4 + fileName.length());
             byteBuf.writeInt(LessClientConfig.MAGIC_CODE);
-            byteBuf.writeLong(token);
+            byteBuf.writeLong(token.longValue());
             byteBuf.writeByte(type);
             byteBuf.writeByte(priority);
             byteBuf.writeByte(0);//status
@@ -276,14 +320,9 @@ public class DefaultLessDFSClient implements ILessDFSClient {
             byteBuf.writeBytes(fileName.getBytes());
 
             clientBootstrap.getChannel().writeAndFlush(byteBuf).sync();
-            ClientWriteFuture<InputStream> writeFuture = new ClientWriteFuture<>(token);
             return writeFuture.get();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (token != null) {
-                TokenFactory.releaseToken(token);
-            }
+            LOG.error("download exception", e);
         }
         return null;
     }
@@ -299,12 +338,13 @@ public class DefaultLessDFSClient implements ILessDFSClient {
         byte type = (byte) LessMessageType.DELETE_FILE_IN.getType();
         byte priority = 0;
         byte[] passwords = LessClientConfig.PASSWORD.getBytes();
-        Long token = null;
-        try {
-            token = TokenFactory.getToken();
+        try (
+                TokenFactory.Token token = TokenFactory.getToken();
+                ClientWriteFuture<Boolean> writeFuture = new ClientWriteFuture<>(token.longValue())
+        ) {
             ByteBuf byteBuf = Unpooled.buffer(15 + 4 + passwords.length + 4 + fileName.length());
             byteBuf.writeInt(LessClientConfig.MAGIC_CODE);
-            byteBuf.writeLong(token);
+            byteBuf.writeLong(token.longValue());
             byteBuf.writeByte(type);
             byteBuf.writeByte(priority);
             byteBuf.writeByte(0);//status
@@ -314,14 +354,9 @@ public class DefaultLessDFSClient implements ILessDFSClient {
             byteBuf.writeBytes(fileName.getBytes());
 
             clientBootstrap.getChannel().writeAndFlush(byteBuf).sync();
-            ClientWriteFuture<Boolean> writeFuture = new ClientWriteFuture<>(token);
             return writeFuture.get();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (token != null) {
-                TokenFactory.releaseToken(token);
-            }
+            LOG.error("delete exception", e);
         }
         return false;
     }

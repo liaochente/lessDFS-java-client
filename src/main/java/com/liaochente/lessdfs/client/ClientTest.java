@@ -1,39 +1,72 @@
 package com.liaochente.lessdfs.client;
 
+import com.liaochente.lessdfs.client.util.StopWatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ClientTest {
 
-    private static AtomicLong totalTimeConsuming = new AtomicLong(0);
+    private final static Logger LOG = LoggerFactory.getLogger(ClientTest.class);
+
+    private static AtomicLong total = new AtomicLong(0);
     private static AtomicLong successRequest = new AtomicLong(0);
     private static AtomicLong failRequest = new AtomicLong(0);
 
+    private final static void printStopWatchs() {
+        List<StopWatch> stopWatches = StopWatch.STOP_WATCHES;
+        LOG.debug("*************** 执行时间统计数据 ***************");
+        Set<String> set = new HashSet<>();
+        stopWatches.forEach(e -> set.add(e.getThreadName()));
+
+        set.forEach(e -> {
+            stopWatches.forEach(sw -> {
+                if (sw.getThreadName().equals(e)) {
+                    List<Map<String, Object>> tasks = sw.getTasks();
+                    tasks.forEach(task -> {
+                        //计算时间差
+                        String taskName = (String) task.get("taskName");
+                        Instant start = (Instant) task.get("start");
+                        Instant end = (Instant) task.get("end");
+                        long millis = Duration.between(start, end).toMillis();
+                        LOG.debug(" Thread-[{}] TaskName-[{}] millis-[{}] ms ", sw.getThreadName(), taskName, millis);
+                    });
+                }
+            });
+        });
+    }
+
     public static void main(String[] args) {
-        CountDownLatch countDownLatch = new CountDownLatch(100);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(200, 500, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100));
+        int requestNum = 50;
+        CountDownLatch countDownLatch = new CountDownLatch(requestNum);
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(requestNum, 500, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100));
         DefaultLessDFSClient client = new DefaultLessDFSClient();
 
         try {
-            Thread.sleep(5*1000);
+            Thread.sleep(5 * 1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         List<Future> futures = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < requestNum; i++) {
             Future future = poolExecutor.submit(() -> {
                 try {
                     countDownLatch.await();
-                    long startTime = System.currentTimeMillis();
-                    String fileName = client.upload("/Users/liaochente/cleanMavenRepository.sh", "sh");
-                    long endTime = System.currentTimeMillis();
-                    System.out.println("本次请求耗时 " + (endTime - startTime) + "MS");
-                    totalTimeConsuming.addAndGet(endTime - startTime);
+                    Instant start = Instant.now();
+                    String fileName = client.upload("/Users/liaochente/CSS禅意花园.pdf", "pdf");
+                    Instant end = Instant.now();
+
+                    LOG.debug(">>>> 单次请求耗时 {} ms", Duration.between(start, end).toMillis());
+                    total.addAndGet(Duration.between(start, end).toMillis());
+
                     if (fileName != null && !"".equals(fileName)) {
                         successRequest.incrementAndGet();
                     } else {
@@ -57,7 +90,8 @@ public class ClientTest {
             }
         }
 
-        System.out.println("totalTimeConsuming = " + totalTimeConsuming.get() + "MS, avg = " + (totalTimeConsuming.get() / 100) + "MS, successRequest = " + successRequest.get() + ", failRequest = " + failRequest.get());
+        //打印时间统计
+        printStopWatchs();
 //
 //        try {
 //            System.out.println("fileName =" + fileName);

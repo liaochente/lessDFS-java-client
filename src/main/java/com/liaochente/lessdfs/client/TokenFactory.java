@@ -43,6 +43,24 @@ public class TokenFactory {
      */
     private static ScheduledFuture future;
 
+    public static class Token implements AutoCloseable {
+
+        private long value;
+
+        public Token(long value) {
+            this.value = value;
+        }
+
+        public long longValue() {
+            return value;
+        }
+
+        @Override
+        public void close() throws Exception {
+            TokenFactory.releaseToken(this);
+        }
+    }
+
     private TokenFactory() {
         //emtpy
     }
@@ -67,11 +85,16 @@ public class TokenFactory {
      * @return
      * @throws InterruptedException
      */
-    public final static long getToken() throws InterruptedException {
+    public final static Token getToken() {
         LOG.debug("take token start.");
-        long token = TOKEN_QUEUE.take();
+        long token;
+        try {
+            token = TOKEN_QUEUE.take();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         LOG.debug("take token end. token={}", token);
-        return token;
+        return new Token(token);
     }
 
     /**
@@ -79,10 +102,10 @@ public class TokenFactory {
      *
      * @param token
      */
-    public final static void releaseToken(long token) {
+    private final static void releaseToken(Token token) {
         try {
-            LOG.debug("release token start. token={}", token);
-            TOKEN_QUEUE.put(token);
+            LOG.debug("release token start. token={}", token.longValue());
+            TOKEN_QUEUE.put(token.longValue());
             LOG.debug("release token end.");
         } catch (InterruptedException e) {
             LOG.error("release token error", e);
@@ -105,7 +128,7 @@ public class TokenFactory {
      * @throws InterruptedException
      */
     private static void augment() throws InterruptedException {
-        LOG.debug("token queue has {} tokens.", CURRENT_TOKEN_COUNT.get());
+        LOG.debug("{} tokens have been generated, token queue has {} tokens", CURRENT_TOKEN_COUNT.get() - Long.MIN_VALUE, TOKEN_QUEUE.size());
         if (CURRENT_TOKEN_COUNT.get() == MAX_TOKEN_COUNT) {
             LOG.debug("The maximum number of tokens has been reached.");
             throw new InterruptedException();
@@ -122,7 +145,7 @@ public class TokenFactory {
             long token = CURRENT_TOKEN_COUNT.incrementAndGet();
             TOKEN_QUEUE.put(token);
         }
-        LOG.debug("add {} tokens to the token bucket, token queue has {} tokens.", length, currentTokenCount + 1, CURRENT_TOKEN_COUNT.get(), TOKEN_QUEUE.size());
+        LOG.debug("add {} tokens to the token bucket, token queue has {} tokens.", length, TOKEN_QUEUE.size());
     }
 
 }

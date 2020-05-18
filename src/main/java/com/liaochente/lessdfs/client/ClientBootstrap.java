@@ -20,7 +20,7 @@ public class ClientBootstrap {
 
     private Bootstrap clientBootstap = new Bootstrap();
 
-    private EventLoopGroup worker = new NioEventLoopGroup(32);
+    private EventLoopGroup worker = new NioEventLoopGroup();
 
     private ChannelHandler channelHandler;
 
