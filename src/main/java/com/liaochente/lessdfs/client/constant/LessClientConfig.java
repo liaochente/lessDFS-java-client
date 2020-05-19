@@ -4,6 +4,7 @@ import com.liaochente.lessdfs.client.ClientBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -15,6 +16,10 @@ public class LessClientConfig {
     public final static String PASSWORD = "123456";
 
     public final static ScheduledThreadPoolExecutor GLOBAL_SCHEDULED_THREAD_POOL = new ScheduledThreadPoolExecutor(8);
+
+    static {
+        System.out.println("file = " + new File("").getAbsolutePath());
+    }
 
     private LessClientConfig() {
 
