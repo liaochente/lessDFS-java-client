@@ -1,5 +1,6 @@
 package com.liaochente.lessdfs.client;
 
+import com.liaochente.lessdfs.client.constant.LessClientConfig;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -61,14 +62,14 @@ public class ClientBootstrap {
             protected void initChannel(Channel channel) throws Exception {
                 ChannelPipeline pipeline = channel.pipeline();
                 pipeline.addLast(new LoggingHandler(LogLevel.DEBUG));
-                pipeline.addLast(new LengthFieldBasedFrameDecoder(1024 * 100, 0, 4,
+                pipeline.addLast(new LengthFieldBasedFrameDecoder(LessClientConfig.maxFrameLength, 0, 4,
                         0, 4));
                 pipeline.addLast(channelHandler);
                 pipeline.addLast(new LengthFieldPrepender(4));
             }
         });
 
-        channelFuture = bootstrap.connect("127.0.0.1", 8888).sync();
+        channelFuture = bootstrap.connect(LessClientConfig.serverAddress, LessClientConfig.port).sync();
         LOG.debug("bootstrap.connect finished");
         channel = channelFuture.channel();
         return channelFuture;

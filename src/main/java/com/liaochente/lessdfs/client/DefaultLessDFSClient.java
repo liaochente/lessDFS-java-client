@@ -226,11 +226,14 @@ public class DefaultLessDFSClient implements ILessDFSClient {
      * 构造方法
      */
     private DefaultLessDFSClient() {
-        LOG.debug("start the task in the token factory.");
+        LessClientConfig.init();
+        LOG.debug("The configuration file is loaded.");
+
         TokenFactory.startTokenTask();
-        LOG.debug("init clientBootstrap start");
+        LOG.debug("Token factory startup completed.");
+
         this.clientBootstrap = new ClientBootstrap(new ClientInHandler());
-        LOG.debug("init clientBootstrap finished");
+        LOG.debug("The clientbootstrap initialization is complete.");
     }
 
     /**
@@ -248,7 +251,7 @@ public class DefaultLessDFSClient implements ILessDFSClient {
 
         byte type = (byte) LessMessageType.UPLOAD_FILE_IN.getType();
         byte priority = 0;
-        byte[] passwords = LessClientConfig.PASSWORD.getBytes();
+        byte[] passwords = LessClientConfig.password.getBytes();
         stopWatch.start("获得token");
         try (
                 TokenFactory.Token token = TokenFactory.getToken();
@@ -316,7 +319,7 @@ public class DefaultLessDFSClient implements ILessDFSClient {
     public InputStream download(String fileName) {
         byte type = (byte) LessMessageType.DOWNLOAD_FILE_IN.getType();
         byte priority = 0;
-        byte[] passwords = LessClientConfig.PASSWORD.getBytes();
+        byte[] passwords = LessClientConfig.password.getBytes();
         try (
                 TokenFactory.Token token = TokenFactory.getToken();
                 ClientWriteFuture<InputStream> writeFuture = new ClientWriteFuture<>(token.longValue())
@@ -350,7 +353,7 @@ public class DefaultLessDFSClient implements ILessDFSClient {
     public Boolean delete(String fileName) {
         byte type = (byte) LessMessageType.DELETE_FILE_IN.getType();
         byte priority = 0;
-        byte[] passwords = LessClientConfig.PASSWORD.getBytes();
+        byte[] passwords = LessClientConfig.password.getBytes();
         try (
                 TokenFactory.Token token = TokenFactory.getToken();
                 ClientWriteFuture<Boolean> writeFuture = new ClientWriteFuture<>(token.longValue())
