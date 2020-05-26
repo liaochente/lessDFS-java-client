@@ -51,6 +51,7 @@ public class LessClientConfig {
      */
     private final static Map<String, String> loadConfig() {
         Path path = Paths.get("less-client.conf");
+        System.out.println(path.toFile().getAbsolutePath());
         if (!path.toFile().exists()) {
             throw new RuntimeException("Failed to load configuration file.");
         }

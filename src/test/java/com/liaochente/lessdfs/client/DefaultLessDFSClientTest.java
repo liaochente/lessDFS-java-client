@@ -12,7 +12,7 @@ public class DefaultLessDFSClientTest {
     @Test
     public void upload() throws FileNotFoundException {
         DefaultLessDFSClient client = DefaultLessDFSClient.newInstance();
-        String fileName = client.upload("/Users/liaochente/CSS禅意花园.pdf", "pdf");
+        String fileName = client.upload("/Users/liaochente/cleanMavenRepository.sh", "sh");
         assertNotNull(fileName);
     }
 
