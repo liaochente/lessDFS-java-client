@@ -3,6 +3,7 @@ package com.liaochente.lessdfs.client.constant;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,7 +53,15 @@ public class LessClientConfig {
     private final static Map<String, String> loadConfig() {
         Path path = Paths.get("less-client.conf");
         if (!path.toFile().exists()) {
-            throw new RuntimeException("Failed to load configuration file.");
+            try {
+                path = Paths.get(LessClientConfig.class.getClassLoader().getResource("less-client.conf").toURI());
+            } catch (URISyntaxException e) {
+                throw new RuntimeException("Failed to load configuration file.", e);
+            }
+
+            if (!path.toFile().exists()) {
+                throw new RuntimeException("Failed to load configuration file.");
+            }
         }
         List<String> configLines = null;
         try {
